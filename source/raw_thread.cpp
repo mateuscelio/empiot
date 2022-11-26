@@ -14,7 +14,7 @@
 #include "raw_thread.h"
 #include "energy_thread.h"
 #include "stop_conditions.h"
-
+#include <sys/socket.h>
 
 using namespace std;
 
@@ -39,21 +39,34 @@ struct timespec filewrite_time;
 string divider = "-----\n";
 string divider2 = "*****\n";
 
-void write_raw(sampleEntry &newEntry) {
+char data_buffer[1024];
 
-    if (newEntry.type == E_None) {
-        #ifdef SAVE_FILEWRITE_TIME
-            clock_gettime(CLOCK_MONOTONIC, &filewrite_time);
-            fprintf(dataFile, "%lld\t%lu\t%lu\t%f\t%f\t%f\t%lu\t%lu\n", newEntry.identifier, newEntry.time.tv_sec, newEntry.time.tv_nsec , newEntry.shunt_voltage, newEntry.bus_voltage, newEntry.current, filewrite_time.tv_sec, filewrite_time.tv_nsec);
-        #else
-            fprintf(dataFile, "%lld\t%lu\t%lu\t%f\t%f\t%f\n", newEntry.identifier, newEntry.time.tv_sec, newEntry.time.tv_nsec , newEntry.shunt_voltage, newEntry.bus_voltage, newEntry.current);
-        #endif
-    } 
-    else if (newEntry.type == E_Single){
-        fprintf(dataFile, "1stsubtrigger\t%lu\t%lu\t%s", newEntry.time.tv_sec, newEntry.time.tv_nsec, divider.c_str());
-    }   
-    else if (newEntry.type == E_Double) {
-        fprintf(dataFile, "2ndsubtrigger\t%lu\t%lu\t%s", newEntry.time.tv_sec, newEntry.time.tv_nsec, divider2.c_str());
+extern int unixSocket;
+extern WriteType writeType;
+
+void write_raw(sampleEntry &newEntry) {
+    if (writeType == UnixSocket) {
+        sprintf(data_buffer, "%lld\t%lu\t%lu\t%f\t%f\t%f\n", newEntry.identifier, newEntry.time.tv_sec, newEntry.time.tv_nsec , newEntry.shunt_voltage, newEntry.bus_voltage, newEntry.current);
+        if (send(unixSocket, data_buffer, strlen(data_buffer), 0) == -1) {
+            cout << "Failed to send\n";
+        };
+    } else {
+        if (newEntry.type == E_None) {
+            #ifdef SAVE_FILEWRITE_TIME
+                clock_gettime(CLOCK_MONOTONIC, &filewrite_time);
+                fprintf(dataFile, "%lld\t%lu\t%lu\t%f\t%f\t%f\t%lu\t%lu\n", newEntry.identifier, newEntry.time.tv_sec, newEntry.time.tv_nsec , newEntry.shunt_voltage, newEntry.bus_voltage, newEntry.current, filewrite_time.tv_sec, filewrite_time.tv_nsec);
+            #else
+                fprintf(dataFile, "%lld\t%lu\t%lu\t%f\t%f\t%f\n", newEntry.identifier, newEntry.time.tv_sec, newEntry.time.tv_nsec , newEntry.shunt_voltage, newEntry.bus_voltage, newEntry.current);
+            #endif
+
+
+        } 
+        else if (newEntry.type == E_Single){
+            fprintf(dataFile, "1stsubtrigger\t%lu\t%lu\t%s", newEntry.time.tv_sec, newEntry.time.tv_nsec, divider.c_str());
+        }   
+        else if (newEntry.type == E_Double) {
+            fprintf(dataFile, "2ndsubtrigger\t%lu\t%lu\t%s", newEntry.time.tv_sec, newEntry.time.tv_nsec, divider2.c_str());
+        }
     }
 }
 

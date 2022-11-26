@@ -84,6 +84,9 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <sys/types.h>
 
 using namespace std;
 
@@ -148,7 +151,8 @@ sampleEntry current_entry;
 sampleEntry previous_entry;
 
 // Depends on memory size
-static int buffer_capacity = 30000;
+//static int buffer_capacity = 30000;
+static int buffer_capacity = 1000;
 
 // Buffer to store raw entries
 // Only added to in raw entry mode
@@ -170,6 +174,13 @@ FILE *dataFile;
 
 // The file name passed in as a parameter
 string dataFileName;
+
+// The type of write
+WriteType writeType = File;
+
+// This is the unix socket that will be used to send readings
+// if write type is unix socket
+int unixSocket;
 
 // If verbose mode is true, then print the raw data while saving energy to file
 bool verbose_mode = false;
@@ -218,6 +229,7 @@ void* quitHandler(void * arg);
 void printStart();
 void printQuitMessage();
 void shared_setup();
+void start_unix_socket();
 void append_parser(int cur_pos, int argc, char* argv[]);
 void block_parser(int cur_pos, int argc, char* argv[]);
 void energy_parser(int cur_pos, int argc, char* argv[]);
@@ -777,7 +789,6 @@ void printQuitMessage() {
     cout << "\nEnter q to quit (not Ctrl^C)" << endl;
 }
 
-
 void shared_setup() {
     void* exitStatus;
     pthread_t thread_sampler_id, thread_file_writer_id, thread_file_writer_energy_id, thread_quitter_id, thread_listener_id;
@@ -806,13 +817,17 @@ void shared_setup() {
 
     ebuffer1.reserve(buffer_capacity);
     ebuffer2.reserve(buffer_capacity);
-    
-    if (append_arg == false) {
-        cout << "Created a new file called " << dataFileName << endl;
-        dataFile = fopen(dataFileName.c_str(), "w");
+
+    if (writeType == UnixSocket) {
+        start_unix_socket();
     } else {
-        cout << "Appending to an existing file called " << dataFileName << endl;
-        dataFile = fopen(dataFileName.c_str(), "a");
+        if (append_arg == false) {
+            cout << "Created a new file called " << dataFileName << endl;
+            dataFile = fopen(dataFileName.c_str(), "w");
+        } else {
+            cout << "Appending to an existing file called " << dataFileName << endl;
+            dataFile = fopen(dataFileName.c_str(), "a");
+        }
     }
 
 
@@ -918,6 +933,28 @@ void shared_setup() {
     pthread_join(thread_sampler_id, &exitStatus);
 }
 
+void start_unix_socket() {
+    if ((unixSocket = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+        cout << "Unix socket creation error\n";
+        exit(1);
+    }
+
+    cout << "Trying to connect to UNIX socket at " << dataFileName << "\n";
+
+    struct sockaddr_un remote;
+    remote.sun_family = AF_UNIX;
+    strcpy(remote.sun_path, dataFileName.c_str());
+    
+    int len  = strlen(remote.sun_path) + sizeof(remote.sun_family);
+
+    if (connect(unixSocket, (struct sockaddr *)&remote, len) == -1) {
+        cout << "Unix socket connection failed\n";
+        exit(1);
+    }
+
+    cout << "Connected!!!\n";
+}
+
 void append_parser(int cur_pos, int argc, char* argv[]) {
     if (cur_pos < argc && string(argv[cur_pos]) == "-a") {
        // cout << "Appending to existing file" << endl;
@@ -968,12 +1005,13 @@ void energy_parser(int cur_pos, int argc, char* argv[]) {
 
 int main(int argc, char* argv[]) {
     
-    int args_needed = 3;
+    int args_needed = 4;
     
     int verbose_arg = 1;
-    int file_arg = 2;
-    int type_arg = 3;
-    int duration_arg = 4;
+    int write_type_arg = 2;
+    int file_arg = 3;
+    int type_arg = 4;
+    int duration_arg = 5;
     int energy_arg = -1;
     int energy_type_pos = -1;
     
@@ -993,6 +1031,7 @@ int main(int argc, char* argv[]) {
         verbose_mode = true;
     }
     else {
+        write_type_arg--;
         file_arg--;
         type_arg--;
         duration_arg--;
@@ -1000,6 +1039,12 @@ int main(int argc, char* argv[]) {
         energy_type_pos--;
     }
     
+    string writeTypeArg = string(argv[write_type_arg]);
+
+    if (writeTypeArg == "-s") {
+        writeType = UnixSocket; 
+    }
+
     dataFileName = string(argv[file_arg]);
     string type  = string(argv[type_arg]);
     

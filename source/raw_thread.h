@@ -34,6 +34,11 @@
 #include "INA219.h"
 #include "Entries.h"
 
+enum WriteType {
+    File = 0,
+    UnixSocket = 1,
+};
+
 // background thread handler which is responsible for writing raw data to file
 void* thread_file_writer(void* arg);
 
