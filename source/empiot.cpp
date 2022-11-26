@@ -148,7 +148,8 @@ sampleEntry current_entry;
 sampleEntry previous_entry;
 
 // Depends on memory size
-static int buffer_capacity = 30000;
+//static int buffer_capacity = 30000;
+static int buffer_capacity = 1000;
 
 // Buffer to store raw entries
 // Only added to in raw entry mode
