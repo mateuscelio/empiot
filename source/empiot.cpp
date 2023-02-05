@@ -476,6 +476,9 @@ void* thread_sampler (void* arg) {
             if (shunt < 0 || bus < 0 || current < 0) {
                 cerr << "Shunt, bus, or current < 0, this is wrong" << endl;
                 cerr << "shunt(mV) :: "  << shunt << " bus(V) :: " << bus << endl;
+
+                pthread_mutex_unlock(&mutex_start_stop);
+
                 continue;
             }
 
