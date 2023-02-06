@@ -840,7 +840,8 @@ void shared_setup() {
     cout << "Calibrating...!" << endl;
     
     // See INA219.h for more calibration options
-    driver->setCalibration_16V_800mA_12bits();
+    //driver->setCalibration_16V_800mA_12bits();
+    driver->setCalibration_16V_400mA_12bits();
     cout << "Calibrating...Done!" << endl;
     
     
@@ -1008,13 +1009,14 @@ void energy_parser(int cur_pos, int argc, char* argv[]) {
 
 int main(int argc, char* argv[]) {
     
-    int args_needed = 4;
+    int args_needed = 5;
     
     int verbose_arg = 1;
-    int write_type_arg = 2;
-    int file_arg = 3;
-    int type_arg = 4;
-    int duration_arg = 5;
+    int shunt_resistor_arg = 2;
+    int write_type_arg = 3;
+    int file_arg = 4;
+    int type_arg = 5;
+    int duration_arg = 6;
     int energy_arg = -1;
     int energy_type_pos = -1;
     
@@ -1034,6 +1036,7 @@ int main(int argc, char* argv[]) {
         verbose_mode = true;
     }
     else {
+        shunt_resistor_arg--;
         write_type_arg--;
         file_arg--;
         type_arg--;
@@ -1041,6 +1044,8 @@ int main(int argc, char* argv[]) {
         energy_arg--;
         energy_type_pos--;
     }
+
+    shunt_resistor =  std::stof(argv[shunt_resistor_arg]);
     
     string writeTypeArg = string(argv[write_type_arg]);
 
