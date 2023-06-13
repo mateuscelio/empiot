@@ -108,6 +108,7 @@ pthread_cond_t start_file_write_samples = PTHREAD_COND_INITIALIZER;
 
 
 float shunt_resistor = 0.1;
+string adc_bits = "adc12b";
 
 struct timespec start_time;
 struct timespec end_time;
@@ -152,6 +153,7 @@ sampleEntry previous_entry;
 
 // Depends on memory size
 //static int buffer_capacity = 30000;
+//static int buffer_capacity = 1000;
 static int buffer_capacity = 1000;
 
 // Buffer to store raw entries
@@ -838,10 +840,18 @@ void shared_setup() {
     
     // Calibration...
     cout << "Calibrating...!" << endl;
-    
+
     // See INA219.h for more calibration options
-    //driver->setCalibration_16V_800mA_12bits();
-    driver->setCalibration_16V_400mA_12bits();
+    if (adc_bits == "adc12b") {
+      cout << "Using ADC with 400mA and 12 bits" << endl;
+      driver->setCalibration_16V_400mA_12bits();
+    }
+
+    if (adc_bits == "adc9b") {
+      cout << "Using ADC with 400mA and 9 bits" << endl;
+      driver->setCalibration_16V_400mA_9bits();
+    }
+
     cout << "Calibrating...Done!" << endl;
     
     
@@ -1009,14 +1019,16 @@ void energy_parser(int cur_pos, int argc, char* argv[]) {
 
 int main(int argc, char* argv[]) {
     
-    int args_needed = 5;
+    int args_needed = 7;
     
     int verbose_arg = 1;
     int shunt_resistor_arg = 2;
     int write_type_arg = 3;
     int file_arg = 4;
-    int type_arg = 5;
-    int duration_arg = 6;
+    int adc_bits_arg = 5;
+    int buffer_capacity_arg = 6;
+    int type_arg = 7;
+    int duration_arg = 8;
     int energy_arg = -1;
     int energy_type_pos = -1;
     
@@ -1039,6 +1051,8 @@ int main(int argc, char* argv[]) {
         shunt_resistor_arg--;
         write_type_arg--;
         file_arg--;
+        adc_bits_arg--;
+        buffer_capacity_arg--;
         type_arg--;
         duration_arg--;
         energy_arg--;
@@ -1046,6 +1060,7 @@ int main(int argc, char* argv[]) {
     }
 
     shunt_resistor =  std::stof(argv[shunt_resistor_arg]);
+    buffer_capacity =  std::stof(argv[buffer_capacity_arg]);
     
     string writeTypeArg = string(argv[write_type_arg]);
 
@@ -1055,6 +1070,7 @@ int main(int argc, char* argv[]) {
 
     dataFileName = string(argv[file_arg]);
     string type  = string(argv[type_arg]);
+    adc_bits = string(argv[adc_bits_arg]);
     
     // trigger sampling
     if (type == "-g") {
